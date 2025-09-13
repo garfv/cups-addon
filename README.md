@@ -1,5 +1,5 @@
 # Home Assistant CUPS Print Server Add-on
-With presistance solved
+With persistence solved
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/arest/cups-addon)
 [![Supports aarch64 Architecture](https://img.shields.io/badge/aarch64-yes-green.svg)](https://github.com/arest/cups-addon)
