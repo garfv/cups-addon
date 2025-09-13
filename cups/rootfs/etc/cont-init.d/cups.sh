@@ -1,20 +1,22 @@
 #!/usr/bin/with-contenv bash
+set -e
 
-# Create CUPS data directories for persistence
-mkdir -p /data/cups/cache
-mkdir -p /data/cups/logs
-mkdir -p /data/cups/state
-mkdir -p /data/cups/config
-
-# Set proper permissions
+mkdir -p /data/cups/{cache,logs,state,config}
 chown -R root:lp /data/cups
 chmod -R 775 /data/cups
 
-# Create CUPS configuration directory if it doesn't exist
 mkdir -p /etc/cups
 
-# Basic CUPS configuration without admin authentication
-cat > /data/cups/config/cupsd.conf << EOL
+# Only create cupsd.conf if it DOESN’T exist (don’t overwrite user edits)
+if [ ! -f /data/cups/config/cupsd.conf ]; then
+  cat > /data/cups/config/cupsd.conf <<'EOL'
+ServerRoot /data/cups/config
+AccessLog /data/cups/logs/access_log
+ErrorLog  /data/cups/logs/error_log
+PageLog   /data/cups/logs/page_log
+StateDir  /data/cups/state
+CacheDir  /data/cups/cache
+
 # Listen on all interfaces
 Listen 0.0.0.0:631
 
@@ -45,26 +47,22 @@ Listen 0.0.0.0:631
   Allow 192.168.0.0/16
 </Location>
 
-<Limit Send-Document Send-URI Hold-Job Release-Job Restart-Job Purge-Jobs Set-Job-Attributes Create-Job-Subscription Renew-Subscription Cancel-Subscription Get-Notifications Reprocess-Job Cancel-Current-Job Suspend-Current-Job Resume-Job Cancel-My-Jobs Close-Job CUPS-Move-Job CUPS-Get-Document>
-  Order allow,deny
-  Allow localhost
-  Allow 10.0.0.0/8
-  Allow 172.16.0.0/12
-  Allow 192.168.0.0/16
-</Limit>
-
-# Enable web interface
 WebInterface Yes
-
-# Default settings
 DefaultAuthType None
 JobSheets none,none
 PreserveJobHistory No
 EOL
+fi
 
-# Create a symlink from the default config location to our persistent location
-ln -sf /data/cups/config/cupsd.conf /etc/cups/cupsd.conf
-ln -sf /data/cups/config/printers.conf /etc/cups/printers.conf
+# Ensure printers.conf exists with CUPS-friendly perms so CUPS can write it
+touch /data/cups/config/printers.conf
+chown root:lp /data/cups/config/printers.conf
+chmod 600   /data/cups/config/printers.conf
 
-# Start CUPS service
+# Symlinks so cupsd uses the persistent files
+ln -sf /data/cups/config/cupsd.conf     /etc/cups/cupsd.conf
+ln -sf /data/cups/config/printers.conf  /etc/cups/printers.conf
+ln -sfn /data/cups/config/ppd           /etc/cups/ppd
+
+# Start CUPS
 /usr/sbin/cupsd -f
